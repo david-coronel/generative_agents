@@ -8,10 +8,13 @@ import json
 import random
 import openai
 import time 
+import requests
 
 from utils import *
 
 openai.api_key = openai_api_key
+openai.api_base = openai_api_base
+
 
 def temp_sleep(seconds=0.1):
   time.sleep(seconds)
@@ -220,7 +223,15 @@ def GPT_request(prompt, gpt_parameter):
                 stop=gpt_parameter["stop"],)
     return response.choices[0].text
   except: 
-    print ("TOKEN LIMIT EXCEEDED")
+    import logging
+    import traceback
+    logging.basicConfig(filename='gpt_errors.log', level=logging.ERROR)
+    error_msg = f"GPT Request Error at {time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+    error_msg += f"Prompt: {prompt}\n"
+    error_msg += f"Parameters: {gpt_parameter}\n"
+    error_msg += f"Exception: {traceback.format_exc()}\n"
+    logging.error(error_msg)
+    print ("TOKEN LIMIT EXCEEDED - See gpt_errors.log for details")
     return "TOKEN LIMIT EXCEEDED"
 
 
@@ -277,12 +288,20 @@ def get_embedding(text, model="text-embedding-ada-002"):
   text = text.replace("\n", " ")
   if not text: 
     text = "this is blank"
-  return openai.Embedding.create(
-          input=[text], model=model)['data'][0]['embedding']
+  API_URL = "http://localhost:11434/api/embeddings"
+  
+  response = requests.post(
+      API_URL,
+      json={"model":"nomic-embed-text","prompt": text}
+  )
+  return response.json()
+
+  #return openai.Embedding.create(
+  #        input=[text], model=model)['data'][0]['embedding']
 
 
 if __name__ == '__main__':
-  gpt_parameter = {"engine": "text-davinci-003", "max_tokens": 50, 
+  gpt_parameter = {"engine": "gpt-3.5-turbo", "max_tokens": 50, 
                    "temperature": 0, "top_p": 1, "stream": False,
                    "frequency_penalty": 0, "presence_penalty": 0, 
                    "stop": ['"']}
